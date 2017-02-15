@@ -158,27 +158,66 @@ class SSD300(nn.Module):
         # return loc_preds, conf_preds
         return h
 
-    def encode(boxes, classes, threshold=0.5):
+    def encode(self, boxes, classes, threshold=0.5):
         '''Transform target bounding boxes and class labels to SSD boxes and classes.
 
         Match each object box to all the default boxes, pick the ones with the
         Jaccard-Index > 0.5:
             Jaccard(A,B) = AB / (A+B-AB)
 
-
         Args:
-          boxes: (tensor) object bounding boxes of a image, sized [#obj, 4].
+          boxes: (tensor) object bounding boxes (x1,y1,x2,y2) of a image, sized [#obj, 4].
           classes: (tensor) object class labels of a image, sized [#obj,].
           threshold: (float) Jaccard index threshold
 
         Returns:
-          boxes: (tensor)
+          boxes: (tensor) bounding boxes, sized [#obj, #default_boxes, 4].
           classes: (tensor)
         '''
+        default_boxes = self.default_boxes
+        num_default_boxes = default_boxes.size(0)
+        num_objs = boxes.size(0)
 
+        lt = default_boxes[:,:2] - default_boxes[:,2:]/2  # [8732,2]
+        lt = torch.max(
+            lt.unsqueeze(0).expand(num_objs, num_default_boxes, 2),          # [8732,2] -> [1,8732,2] -> [#obj,8732,2]
+            boxes[:,:2].unsqueeze(1).expand(num_objs, num_default_boxes, 2)  # [#obj,2] -> [#obj,1,2] -> [#obj,8732,2]
+        )
 
+        rb = default_boxes[:,:2] + default_boxes[:,2:]/2  # [8732,2]
+        rb = torch.min(
+            rb.unsqueeze(0).expand(num_objs, num_default_boxes, 2),          # [8732,2] -> [1,8732,2] -> [#obj,8732,2]
+            boxes[:,2:].unsqueeze(1).expand(num_objs, num_default_boxes, 2)  # [#obj,2] -> [#obj,1,2] -> [#obj,8732,2]
+        )
 
+        wh = rb - lt  # [#obj,8732,2]
+        wh[wh<0] = 0  # clip at 0
+        inter_areas = wh[:,:,0] * wh[:,:,1]  # [#obj,8732]
 
+        default_box_areas = default_boxes[:,2] * default_boxes[:,3]        # [8732,]
+        obj_box_areas = (boxes[:,2]-boxes[:,0]) * (boxes[:,3]-boxes[:,1])  # [#obj,]
+
+        default_box_areas = default_box_areas.unsqueeze(0).expand_as(inter_areas)  # [8732,] -> [1,8732] -> [#obj,8732]
+        obj_box_areas = obj_box_areas.unsqueeze(1).expand_as(inter_areas)          # [#obj,] -> [#obj,1] -> [#obj,8732]
+
+        iou = inter_areas / (default_box_areas + obj_box_areas - inter_areas)  # [#obj,8732]
+
+        iou, max_idx = iou.max(0)  # [1,8732]
+        max_idx.squeeze_(0)        # [8732,]
+        iou.squeeze_(0)            # [8732,]
+
+        boxes = boxes[max_idx]     # [8732,4]
+        # (x1,y1,x2,y2) -> (cx,cy,w,h)
+        variances = [0.1, 0.2]
+        xy = (boxes[:,:2] + boxes[:,2:]) / 2 - default_boxes[:,:2]  # [8732,2]
+        xy /= (variances[0] * default_boxes[:,2:])
+        wh = (boxes[:,2:] - boxes[:,:2]) / default_boxes[:,2:]      # [8732,2]
+        wh = torch.log(wh) / variances[1]
+        loc = torch.cat([xy, wh], 1)  # [8732,4]
+
+        conf = 1 + classes[max_idx]   # [8732,1], class = 0 is the background
+        conf[iou<threshold] = 0
+        return loc, conf
 
     def VGG16(self):
         '''VGG16 layers.'''
@@ -199,4 +238,7 @@ class SSD300(nn.Module):
 net = SSD300()
 x = torch.Tensor(1,3,300,300)
 y = net(Variable(x))
-# print(y.size())
+
+boxes = torch.Tensor([[0,0,0.4,0.4], [0.2,0.2,0.8,0.8]])  # x y x y  [nobj,4]
+classes = torch.LongTensor([0,1])
+loc, conf = net.encode(boxes, classes)
