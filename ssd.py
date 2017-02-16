@@ -153,10 +153,7 @@ class SSD300(nn.Module):
             print(x.size())
 
         loc_preds, conf_preds = self.multibox(hs)
-
-
-        # return loc_preds, conf_preds
-        return h
+        return loc_preds, conf_preds
 
     def encode(self, boxes, classes, threshold=0.5):
         '''Transform target bounding boxes and class labels to SSD boxes and classes.
@@ -171,8 +168,8 @@ class SSD300(nn.Module):
           threshold: (float) Jaccard index threshold
 
         Returns:
-          boxes: (tensor) bounding boxes, sized [#obj, #default_boxes, 4].
-          classes: (tensor)
+          boxes: (tensor) bounding boxes, sized [#obj, 8732, 4].
+          classes: (tensor) class labels, sized [8732,]
         '''
         default_boxes = self.default_boxes
         num_default_boxes = default_boxes.size(0)
@@ -215,8 +212,8 @@ class SSD300(nn.Module):
         wh = torch.log(wh) / variances[1]
         loc = torch.cat([xy, wh], 1)  # [8732,4]
 
-        conf = 1 + classes[max_idx]   # [8732,1], class = 0 is the background
-        conf[iou<threshold] = 0
+        conf = 1 + classes[max_idx]   # [8732,], background class = 0
+        conf[iou<threshold] = 0       # background
         return loc, conf
 
     def VGG16(self):
@@ -235,10 +232,20 @@ class SSD300(nn.Module):
         return nn.Sequential(*layers)
 
 
-net = SSD300()
-x = torch.Tensor(1,3,300,300)
-y = net(Variable(x))
+def test_ssd():
+    net = SSD300()
+    x = torch.Tensor(1,3,300,300)
+    loc_preds, conf_preds = net(Variable(x))
+    print('\nloc_preds:')
+    print(loc_preds.size())
+    print('\nconf_preds:')
+    print(conf_preds.size())
 
-boxes = torch.Tensor([[0,0,0.4,0.4], [0.2,0.2,0.8,0.8]])  # x y x y  [nobj,4]
-classes = torch.LongTensor([0,1])
-loc, conf = net.encode(boxes, classes)
+    boxes = torch.Tensor([[0,0,0.4,0.4], [0.2,0.2,0.8,0.8]])  # x y x y  [nobj,4]
+    classes = torch.LongTensor([0,1])
+    loc, conf = net.encode(boxes, classes)
+    print('\nencoded data:')
+    print(loc.size())
+    print(conf.size())
+
+test_ssd()

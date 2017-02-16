@@ -53,3 +53,27 @@ class MultiBox(nn.Module):
         print('\nconf_preds size:')
         print(conf_preds.size())
         return loc_preds, conf_preds
+
+    def loss(loc_preds, loc_targets, conf_preds, conf_targets):
+        '''Compute loss between (loc_preds, loc_targets) and (conf_preds, conf_targets).
+
+        Args:
+          loc_preds: (tensor) predicted locations, sized [#samples, 8732, 4].
+          loc_targets: (tensor) encoded target locations, sized [#samples, 8732, 4].
+          conf_preds: (tensor) predicted class confidences, sized [#samples, 8732, #classes].
+          conf_targets: (tensor) encoded target classes, sized [#samples, 8732].
+
+        loss:
+          (Variable) SmoothL1Loss(loc_preds, loc_targets) + SoftmaxLoss(conf_preds, conf_targets).
+        '''
+        batch_size, num_boxes, _ = loc_preds.size()
+
+        pos = conf_targets>0  # [N,8732]
+        pos_mask = pos.unsqueeze(2).expand_as(loc_preds)  # [N,8732,4]
+        loc_preds_pos = loc_preds.masked_select(pos_mask).view(-1,4)  # [4390,4]
+        loc_targets_pos = loc_targets.masked_select(pos_mask).view(-1,4)  # [4390,4]
+
+        loc_loss = F.smooth_l1_loss(loc_preds_pos, loc_targets_pos, size_average=False)
+        conf_loss = F.cross_entropy(conf_preds.view(-1,self.num_classes), conf_targets.view(-1), size_average=False)
+
+        return loc_loss, conf_loss
