@@ -75,5 +75,4 @@ class MultiBox(nn.Module):
 
         loc_loss = F.smooth_l1_loss(loc_preds_pos, loc_targets_pos, size_average=False)
         conf_loss = F.cross_entropy(conf_preds.view(-1,self.num_classes), conf_targets.view(-1), size_average=False)
-
         return loc_loss, conf_loss

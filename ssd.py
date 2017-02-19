@@ -155,6 +155,41 @@ class SSD300(nn.Module):
         loc_preds, conf_preds = self.multibox(hs)
         return loc_preds, conf_preds
 
+    def iou(self, box1, box2):
+        '''Compute the intersection over union of two set of boxes, each box is [x1,y1,x2,y2].
+
+        Args:
+          box1: (tensor) bounding boxes, sized [N,4].
+          box2: (tensor) bounding boxes, sized [M,4].
+
+        Return:
+          (tensor) iou, sized [N,M].
+        '''
+        N = box1.size(0)
+        M = box2.size(0)
+
+        lt = torch.max(
+            box1[:,:2].unsqueeze(1).expand(N,M,2),  # [N,2] -> [N,1,2] -> [N,M,2]
+            box2[:,:2].unsqueeze(0).expand(N,M,2),  # [M,2] -> [1,M,2] -> [N,M,2]
+        )
+
+        rb = torch.min(
+            box1[:,2:].unsqueeze(1).expand(N,M,2),  # [N,2] -> [N,1,2] -> [N,M,2]
+            box2[:,2:].unsqueeze(0).expand(N,M,2),  # [M,2] -> [1,M,2] -> [N,M,2]
+        )
+
+        wh = rb - lt  # [N,M,2]
+        wh[wh<0] = 0  # clip at 0
+        inter = wh[:,:,0] * wh[:,:,1]  # [N,M]
+
+        area1 = (box1[:,2]-box1[:,0]) * (box1[:,3]-box1[:,1])  # [N,]
+        area2 = (box2[:,2]-box2[:,0]) * (box2[:,3]-box2[:,1])  # [M,]
+        area1 = area1.unsqueeze(1).expand_as(inter)  # [N,] -> [N,1] -> [N,M]
+        area2 = area2.unsqueeze(0).expand_as(inter)  # [M,] -> [1,M] -> [N,M]
+
+        iou = inter / (area1 + area2 - inter)
+        return iou
+
     def encode(self, boxes, classes, threshold=0.5):
         '''Transform target bounding boxes and class labels to SSD boxes and classes.
 
@@ -175,29 +210,11 @@ class SSD300(nn.Module):
         num_default_boxes = default_boxes.size(0)
         num_objs = boxes.size(0)
 
-        lt = default_boxes[:,:2] - default_boxes[:,2:]/2  # [8732,2]
-        lt = torch.max(
-            lt.unsqueeze(0).expand(num_objs, num_default_boxes, 2),          # [8732,2] -> [1,8732,2] -> [#obj,8732,2]
-            boxes[:,:2].unsqueeze(1).expand(num_objs, num_default_boxes, 2)  # [#obj,2] -> [#obj,1,2] -> [#obj,8732,2]
+        iou = self.iou(  # [#obj,8732]
+            boxes,
+            torch.cat([default_boxes[:,:2] - default_boxes[:,2:]/2,
+                       default_boxes[:,:2] + default_boxes[:,2:]/2], 1)
         )
-
-        rb = default_boxes[:,:2] + default_boxes[:,2:]/2  # [8732,2]
-        rb = torch.min(
-            rb.unsqueeze(0).expand(num_objs, num_default_boxes, 2),          # [8732,2] -> [1,8732,2] -> [#obj,8732,2]
-            boxes[:,2:].unsqueeze(1).expand(num_objs, num_default_boxes, 2)  # [#obj,2] -> [#obj,1,2] -> [#obj,8732,2]
-        )
-
-        wh = rb - lt  # [#obj,8732,2]
-        wh[wh<0] = 0  # clip at 0
-        inter_areas = wh[:,:,0] * wh[:,:,1]  # [#obj,8732]
-
-        default_box_areas = default_boxes[:,2] * default_boxes[:,3]        # [8732,]
-        obj_box_areas = (boxes[:,2]-boxes[:,0]) * (boxes[:,3]-boxes[:,1])  # [#obj,]
-
-        default_box_areas = default_box_areas.unsqueeze(0).expand_as(inter_areas)  # [8732,] -> [1,8732] -> [#obj,8732]
-        obj_box_areas = obj_box_areas.unsqueeze(1).expand_as(inter_areas)          # [#obj,] -> [#obj,1] -> [#obj,8732]
-
-        iou = inter_areas / (default_box_areas + obj_box_areas - inter_areas)  # [#obj,8732]
 
         iou, max_idx = iou.max(0)  # [1,8732]
         max_idx.squeeze_(0)        # [8732,]
