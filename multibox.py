@@ -133,9 +133,9 @@ class MultiBox(nn.Module):
 
         pos_mask = pos.unsqueeze(2).expand_as(conf_preds)  # [N,8732,21]
         neg_mask = neg.unsqueeze(2).expand_as(conf_preds)  # [N,8732,21]
-        mask = torch.clamp(pos_mask+neg_mask, max=1)
+        mask = (pos_mask+neg_mask).gt(0)
 
-        pos_and_neg = torch.clamp(pos+neg, max=1)
+        pos_and_neg = (pos+neg).gt(0)
         preds = conf_preds[mask].view(-1,self.num_classes)  # [#pos,21]
         targets = conf_targets[pos_and_neg]                 # [#pos,]
         conf_loss = F.cross_entropy(preds, targets, size_average=False)

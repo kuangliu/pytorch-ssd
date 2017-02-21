@@ -250,6 +250,7 @@ class SSD300(nn.Module):
 
 
 def test_ssd():
+    torch.manual_seed(0)
     net = SSD300()
     x = torch.randn(1,3,300,300)
     loc_preds, conf_preds = net(Variable(x))
