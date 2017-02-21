@@ -58,13 +58,13 @@ class MultiBox(nn.Module):
         '''Cross entropy loss w/o averaging across all examples.
 
         Args:
-          x: (tensor Variable) sized [N,D].
-          y: (tensor Variable) sized [N,].
+          x: (tensor) sized [N,D].
+          y: (tensor) sized [N,].
 
         Return:
-          (tensor Variable) Cross entroy loss, sized [N,].
+          (tensor) cross entroy loss, sized [N,].
         '''
-        xmax = x.max().data[0]
+        xmax = x.data.max()
         log_sum_exp = torch.log(torch.sum(torch.exp(x-xmax), 1)) + xmax
         return log_sum_exp - x.gather(1, y.view(-1,1))
 
@@ -108,24 +108,29 @@ class MultiBox(nn.Module):
           conf_targets: (tensor) encoded target classes, sized [#samples, 8732].
 
         loss:
-          (Variable) SmoothL1Loss(loc_preds, loc_targets) + SoftmaxLoss(conf_preds, conf_targets).
+          (tensor) loss = SmoothL1Loss(loc_preds, loc_targets) + SoftmaxLoss(conf_preds, conf_targets).
         '''
         batch_size, num_boxes, _ = loc_preds.size()
 
         pos = conf_targets>0  # [N,8732], pos means the box matched.
         num_matched_boxes = pos.data.long().sum()
 
-        # L(loc) = SmoothL1Loss(pos_loc_preds, pos_loc_targets)
+        ###########################################################
+        # loc_loss = SmoothL1Loss(pos_loc_preds, pos_loc_targets)
+        ###########################################################
         pos_mask = pos.unsqueeze(2).expand_as(loc_preds)    # [N,8732,4]
         pos_loc_preds = loc_preds[pos_mask].view(-1,4)      # [#pos,4]
         pos_loc_targets = loc_targets[pos_mask].view(-1,4)  # [#pos,4]
         loc_loss = F.smooth_l1_loss(pos_loc_preds, pos_loc_targets, size_average=False)
         loc_loss /= num_matched_boxes
 
-        # L(conf) = SoftmaxLoss(pos_conf_preds, pos_conf_targets)
+        ###########################################################
+        # conf_loss = SoftmaxLoss(pos_conf_preds, pos_conf_targets)
         #           + SoftmaxLoss(neg_conf_preds, neg_conf_targets)
-        conf_loss = self.cross_entropy_loss(conf_preds.view(-1,self.num_classes), conf_targets.view(-1))  # [N*8732,]
-        neg = self.hard_negative_mining(conf_loss, pos)
+        ###########################################################
+        conf_loss = self.cross_entropy_loss(conf_preds.view(-1,self.num_classes), \
+                                            conf_targets.view(-1))  # [N*8732,]
+        neg = self.hard_negative_mining(conf_loss, pos)    # [N,8732]
 
         pos_mask = pos.unsqueeze(2).expand_as(conf_preds)  # [N,8732,21]
         neg_mask = neg.unsqueeze(2).expand_as(conf_preds)  # [N,8732,21]
@@ -133,7 +138,7 @@ class MultiBox(nn.Module):
 
         pos_and_neg = torch.clamp(pos+neg, max=1)
         preds = conf_preds[mask].view(-1,self.num_classes)  # [#pos,21]
-        targets = conf_targets[pos_and_neg]                  # [#pos,]
+        targets = conf_targets[pos_and_neg]                 # [#pos,]
         conf_loss = F.cross_entropy(preds, targets, size_average=False)
         conf_loss /= num_matched_boxes
 
