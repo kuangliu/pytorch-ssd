@@ -55,7 +55,7 @@ class MultiBox(nn.Module):
         return loc_preds, conf_preds
 
     def cross_entropy_loss(self, x, y):
-        '''Cross entropy loss w/o averaging across all examples.
+        '''Cross entropy loss w/o averaging across all samples.
 
         Args:
           x: (tensor) sized [N,D].
@@ -122,7 +122,6 @@ class MultiBox(nn.Module):
         pos_loc_preds = loc_preds[pos_mask].view(-1,4)      # [#pos,4]
         pos_loc_targets = loc_targets[pos_mask].view(-1,4)  # [#pos,4]
         loc_loss = F.smooth_l1_loss(pos_loc_preds, pos_loc_targets, size_average=False)
-        loc_loss /= num_matched_boxes
 
         ###########################################################
         # conf_loss = SoftmaxLoss(pos_conf_preds, pos_conf_targets)
@@ -140,6 +139,6 @@ class MultiBox(nn.Module):
         preds = conf_preds[mask].view(-1,self.num_classes)  # [#pos,21]
         targets = conf_targets[pos_and_neg]                 # [#pos,]
         conf_loss = F.cross_entropy(preds, targets, size_average=False)
-        conf_loss /= num_matched_boxes
 
-        return loc_loss, conf_loss
+        loss = (loc_loss + conf_loss) / num_matched_boxes
+        return loss

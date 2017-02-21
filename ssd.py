@@ -251,7 +251,7 @@ class SSD300(nn.Module):
 
 def test_ssd():
     net = SSD300()
-    x = torch.Tensor(1,3,300,300)
+    x = torch.randn(1,3,300,300)
     loc_preds, conf_preds = net(Variable(x))
     print('\nloc_preds:')
     print(loc_preds.size())
@@ -260,27 +260,17 @@ def test_ssd():
 
     boxes = torch.Tensor([[0,0,0.4,0.4], [0.2,0.2,0.8,0.8]])  # x y x y  [nobj,4]
     classes = torch.LongTensor([0,1])
-    loc, conf = net.encode(boxes, classes)
+    loc_targets, conf_targets = net.encode(boxes, classes)
     print('\nencoded data:')
-    print(loc.size())
-    print(conf.size())
+    print(loc_targets.size())
+    print(conf_targets.size())
 
-    torch.manual_seed(0)
-    a = torch.randn(2,8732,4)
-    b = torch.randn(2,8732,4)
-    c = torch.randn(2,8732,21)
-    d = torch.ones(2,8732).long()
-    d[0,0:8000] = 0
-    d[1,0:8000] = 0
+    loc_targets = Variable(loc_targets.view(1,8732,4))
+    conf_targets = Variable(conf_targets.view(1,8732))
+    loss = net.multibox.loss(loc_preds, loc_targets, conf_preds, conf_targets)
+    print('\nloss:')
+    print(loss)
 
-    loc_preds = Variable(a)
-    loc_targets = Variable(b)
-    conf_preds = Variable(c)
-    conf_targets = Variable(d)
-    loc_loss, conf_loss = net.multibox.loss(loc_preds, loc_targets, conf_preds, conf_targets)
-    print('\nloc_loss:')
-    print(loc_loss)
-    print('\nconf_loss:')
-    print(conf_loss)
+    loss.backward()
 
 test_ssd()
