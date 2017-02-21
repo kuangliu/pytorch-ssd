@@ -265,4 +265,22 @@ def test_ssd():
     print(loc.size())
     print(conf.size())
 
+    torch.manual_seed(0)
+    a = torch.randn(2,8732,4)
+    b = torch.randn(2,8732,4)
+    c = torch.randn(2,8732,21)
+    d = torch.ones(2,8732).long()
+    d[0,0:8000] = 0
+    d[1,0:8000] = 0
+
+    loc_preds = Variable(a)
+    loc_targets = Variable(b)
+    conf_preds = Variable(c)
+    conf_targets = Variable(d)
+    loc_loss, conf_loss = net.multibox.loss(loc_preds, loc_targets, conf_preds, conf_targets)
+    print('\nloc_loss:')
+    print(loc_loss)
+    print('\nconf_loss:')
+    print(conf_loss)
+
 test_ssd()

@@ -54,7 +54,7 @@ class MultiBox(nn.Module):
         print(conf_preds.size())
         return loc_preds, conf_preds
 
-    def cross_entropy_loss(x,y):
+    def cross_entropy_loss(self, x, y):
         '''Cross entropy loss w/o averaging across all examples.
 
         Args:
@@ -68,14 +68,37 @@ class MultiBox(nn.Module):
         log_sum_exp = torch.log(torch.sum(torch.exp(x-xmax), 1)) + xmax
         return log_sum_exp - x.gather(1, y.view(-1,1))
 
-    def test_cross_entropy_loss():
+    def test_cross_entropy_loss(self):
         a = Variable(torch.randn(10,4))
         b = Variable(torch.ones(10).long())
-        loss = cross_entropy_loss(a,b)
+        loss = self.cross_entropy_loss(a,b)
         print(loss.mean())
         print(F.cross_entropy(a,b))
 
-    def loss(loc_preds, loc_targets, conf_preds, conf_targets):
+    def hard_negative_mining(self, conf_loss, pos):
+        '''Return negative indices that is 3x the number as postive indices.
+
+        Args:
+          conf_loss: (tensor) cross entroy loss between conf_preds and conf_targets, sized [N*8732,].
+          pos: (tensor) positive(matched) box indices, sized [N,8732].
+
+        Return:
+          (tensor) negative indices, sized [N,8732].
+        '''
+        batch_size, num_boxes = pos.size()
+
+        conf_loss[pos] = 0  # set pos boxes = 0, the rest are negative conf_loss
+        conf_loss = conf_loss.view(batch_size, -1)  # [N,8732]
+        max_loss,_ = conf_loss.sort(1, descending=True)  # soft by negative conf_loss
+
+        num_pos = pos.long().sum(1)  # [N,1]
+        num_neg = torch.clamp(3*num_pos, max=num_boxes-1)  # [N,1]
+
+        pivot_loss = max_loss.gather(1, num_neg)           # [N,1]
+        neg = conf_loss > pivot_loss.expand_as(conf_loss)  # [N,8732]
+        return neg
+
+    def loss(self, loc_preds, loc_targets, conf_preds, conf_targets):
         '''Compute loss between (loc_preds, loc_targets) and (conf_preds, conf_targets).
 
         Args:
@@ -89,11 +112,29 @@ class MultiBox(nn.Module):
         '''
         batch_size, num_boxes, _ = loc_preds.size()
 
-        pos = conf_targets>0  # [N,8732]
-        pos_mask = pos.unsqueeze(2).expand_as(loc_preds)  # [N,8732,4]
-        loc_preds_pos = loc_preds[pos_mask].view(-1,4)  # [4390,4]
-        loc_targets_pos = loc_targets[pos_mask].view(-1,4)  # [4390,4]
+        pos = conf_targets>0  # [N,8732], pos means the box matched.
+        num_matched_boxes = pos.data.long().sum()
 
-        loc_loss = F.smooth_l1_loss(loc_preds_pos, loc_targets_pos, size_average=False)
-        conf_loss = F.cross_entropy(conf_preds.view(-1,self.num_classes), conf_targets.view(-1), size_average=False)
+        # L(loc) = SmoothL1Loss(pos_loc_preds, pos_loc_targets)
+        pos_mask = pos.unsqueeze(2).expand_as(loc_preds)    # [N,8732,4]
+        pos_loc_preds = loc_preds[pos_mask].view(-1,4)      # [#pos,4]
+        pos_loc_targets = loc_targets[pos_mask].view(-1,4)  # [#pos,4]
+        loc_loss = F.smooth_l1_loss(pos_loc_preds, pos_loc_targets, size_average=False)
+        loc_loss /= num_matched_boxes
+
+        # L(conf) = SoftmaxLoss(pos_conf_preds, pos_conf_targets)
+        #           + SoftmaxLoss(neg_conf_preds, neg_conf_targets)
+        conf_loss = self.cross_entropy_loss(conf_preds.view(-1,self.num_classes), conf_targets.view(-1))  # [N*8732,]
+        neg = self.hard_negative_mining(conf_loss, pos)
+
+        pos_mask = pos.unsqueeze(2).expand_as(conf_preds)  # [N,8732,21]
+        neg_mask = neg.unsqueeze(2).expand_as(conf_preds)  # [N,8732,21]
+        mask = torch.clamp(pos_mask+neg_mask, max=1)
+
+        pos_and_neg = torch.clamp(pos+neg, max=1)
+        preds = conf_preds[mask].view(-1,self.num_classes)  # [#pos,21]
+        targets = conf_targets[pos_and_neg]                  # [#pos,]
+        conf_loss = F.cross_entropy(preds, targets, size_average=False)
+        conf_loss /= num_matched_boxes
+
         return loc_loss, conf_loss
