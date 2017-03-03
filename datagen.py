@@ -9,7 +9,6 @@ e.g.
 ...
 
 '''
-
 from __future__ import print_function
 
 import os
@@ -29,8 +28,9 @@ class ListDataset(data.Dataset):
     image_size = 300
     max_obj_per_image = 10
 
-    def __init__(self, root, list_file):
+    def __init__(self, root, list_file, transform):
         self.root = root
+        self.transform = transform
 
         self.fnames = []
         self.boxes = []
@@ -54,7 +54,7 @@ class ListDataset(data.Dataset):
                 ymax = splited[5+5*j]
                 c = splited[6+5*j]
                 box.append([int(xmin),int(ymin),int(xmax),int(ymax)])
-                label.append(int(c) + 1)  # background label is 0
+                label.append(int(c))
             self.boxes.append(torch.Tensor(box))
             self.labels.append(torch.LongTensor(label))
 
@@ -69,7 +69,7 @@ class ListDataset(data.Dataset):
         fname = self.fnames[index]
         im = Image.open(os.path.join(self.root, fname))
         im = im.resize((self.image_size,self.image_size))
-        im = transforms.ToTensor()(im)
+        im = self.transform(im)
 
         box = self.as_ssd_box(im, self.boxes[index], 'XYXY')  # [#obj,4]
         target = torch.Tensor()
@@ -81,7 +81,8 @@ class ListDataset(data.Dataset):
         images = []
         boxes = []
         labels = []
-        indices = torch.randperm(self.num_samples)[:batch_size]
+        # indices = torch.randperm(self.num_samples)[:batch_size]
+        indices = range(batch_size)
         for index in indices:
             fname = self.fnames[index]
             im = Image.open(os.path.join(self.root, fname))
@@ -92,7 +93,7 @@ class ListDataset(data.Dataset):
 
             # resize image
             im = im.resize((self.image_size,self.image_size))
-            im = transforms.ToTensor()(im)  # PIL image -> tensor
+            im = self.transform(im)  # PIL image -> tensor
             images.append(im.unsqueeze(0))  # [C,H,W] -> [1,C,H,W]
 
             # add labels
@@ -100,7 +101,7 @@ class ListDataset(data.Dataset):
         return torch.cat(images,0), boxes, labels
 
     def as_ssd_box(self, im, box, arrange):
-        '''Transform absolute box (x,y,w,h) or (x,y,x,y) to SSD relative box (cx,cy,w,h).
+        '''Transform absolute box (x,y,w,h) or (x,y,x,y) to SSD relative box (x,y,x,y).
 
         Args:
           im: (PIL image) image sample.
@@ -110,25 +111,16 @@ class ListDataset(data.Dataset):
         Return:
           (tensor) box after transform, sized [N,4].
         '''
-        imh, imw = im.size
-        if arrange == 'XYWH':
-            cx = (box[:,0] + box[:,2] / 2.0) / imw
-            cy = (box[:,1] + box[:,3] / 2.0) / imh
-            w = box[:,2] / imw
-            h = box[:,3] / imh
-        elif arrange == 'XYXY':
-            cx = (box[:,0] + box[:,2]) / 2.0 / imw
-            cy = (box[:,1] + box[:,3]) / 2.0 / imh
-            w = (box[:,2] - box[:,0]) / imw
-            h = (box[:,3] - box[:,1]) / imh
-        return torch.cat([cx,cy,w,h], 1)
+        imw, imh = im.size
+        if arrange == 'XYXY':
+            xmin = box[:,0] / imw
+            ymin = box[:,1] / imh
+            xmax = box[:,2] / imw
+            ymax = box[:,3] / imh
+        return torch.cat([xmin,ymin,xmax,ymax], 1)
 
     def __len__(self):
         return self.num_samples
-
-
-# dataset = ListDataset(root='./fake_data/', list_file='./fake_data/index.txt')
-# loader = torch.utils.data.DataLoader(dataset, batch_size=2, shuffle=True, num_workers=2)
 
 
 # dataset = ListDataset(root='/mnt/hgfs/D/download/PASCAL VOC/VOC2007/JPEGImages', list_file='./voc_data/index.txt')
