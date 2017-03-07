@@ -1,11 +1,13 @@
 # PyTorch-SSD [in progress]
 [Single Shot MultiBox Detector](https://arxiv.org/abs/1512.02325) with PyTorch.  
 
-## Dataset organization
-We describe the dataset as `<image, cls, loc>`.
-- `image`: image pixels.
-- `cls`: list of object classes in the image, with length `N`.
-- `loc`: tensor of object localization, sized `[N,4]`.
+Currently it's not working.
+
+## TODO:
+- Remove BN？
+- Replace ListDataset with PyTorch built-in dataset loader.
+- Use pretrained VGG model.
+- Speed up.
 
 ## Credit
 This implementation is heavily inspired by [Hakuyume/chainer-ssd](https://github.com/Hakuyume/chainer-ssd). Go and check it out.
