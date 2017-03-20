@@ -9,6 +9,7 @@ e.g.
 ...
 
 '''
+
 from __future__ import print_function
 
 import os
@@ -86,7 +87,6 @@ class ListDataset(data.Dataset):
         for index in indices:
             fname = self.fnames[index]
             im = Image.open(os.path.join(self.root, fname))
-
             # transform box (with original image sizes)
             box = self.as_ssd_box(im, self.boxes[index], 'XYXY')
             boxes.append(box)
@@ -94,11 +94,11 @@ class ListDataset(data.Dataset):
             # resize image
             im = im.resize((self.image_size,self.image_size))
             im = self.transform(im)  # PIL image -> tensor
-            images.append(im.unsqueeze(0))  # [C,H,W] -> [1,C,H,W]
+            images.append(im)
 
             # add labels
             labels.append(self.labels[index])
-        return torch.cat(images,0), boxes, labels
+        return torch.stack(images,0), boxes, labels
 
     def as_ssd_box(self, im, box, arrange):
         '''Transform absolute box (x,y,w,h) or (x,y,x,y) to SSD relative box (x,y,x,y).
@@ -123,9 +123,12 @@ class ListDataset(data.Dataset):
         return self.num_samples
 
 
-# dataset = ListDataset(root='/mnt/hgfs/D/download/PASCAL VOC/VOC2007/JPEGImages', list_file='./voc_data/index.txt')
-# images, boxes, labels = dataset.load(10)
-# print(images.size())
-# print(boxes)
-# print(labels)
-# print(len(dataset))
+def test_datagen():
+    dataset = ListDataset(root='/mnt/hgfs/D/download/PASCAL VOC/VOC2007/JPEGImages', list_file='./voc_data/index.txt')
+    images, boxes, labels = dataset.load(10)
+    print(images.size())
+    print(boxes)
+    print(labels)
+    print(len(dataset))
+
+# test_datagen()
