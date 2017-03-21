@@ -16,6 +16,7 @@ import torchvision.transforms as transforms
 from ssd import SSD300
 from utils import progress_bar
 from datagen import ListDataset
+from encoder import DataEncoder
 from multibox_loss import MultiBoxLoss
 
 from torch.autograd import Variable
@@ -35,6 +36,8 @@ transform = transforms.Compose([transforms.ToTensor(),
                                 transforms.Normalize((123., 117., 104.), (1.,1.,1.))])
 #transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.4494,0.4236,0.3882), (0.2408,0.2342,0.2365))])
 dataset = ListDataset(root='/search/liukuang/data/VOC2007/JPEGImages', list_file='./voc_data/index.txt', transform=transform)
+dataloader = torch.utils.data.DataLoader(dataset, batch_size=32, shuffle=True, num_workers=2)
+data_encoder = DataEncoder()
 
 # Model
 net = SSD300()
@@ -54,18 +57,17 @@ def train(epoch):
     net.train()
     train_loss = 0
 
-    # load a batch
-    batch_size = 32
-    for batch_idx in range(len(dataset) / batch_size):
-        images, boxes, labels = dataset.load(batch_size)
+    for batch_idx, (images, indices) in enumerate(dataloader):
+        boxes, labels = dataset.load_boxes_and_labels(indices)
         if use_cuda:
         	images = images.cuda()
         optimizer.zero_grad()
 
+        batch_size = len(boxes)
         loc_targets = torch.Tensor(batch_size, 8732, 4)
         conf_targets = torch.LongTensor(batch_size, 8732)
         for i in range(batch_size):
-            loc_target, conf_target = net.module.data_encoder.encode(boxes[i], labels[i])
+            loc_target, conf_target = data_encoder.encode(boxes[i], labels[i])
             loc_targets[i] = loc_target
             conf_targets[i] = conf_target
 

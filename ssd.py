@@ -8,7 +8,6 @@ import torch.nn.init as init
 
 from torch.autograd import Variable
 
-from encoder import DataEncoder
 from multibox_layer import MultiBoxLayer
 
 class L2Norm2d(nn.Module):
@@ -24,13 +23,9 @@ class L2Norm2d(nn.Module):
 
 class SSD300(nn.Module):
     input_size = 300
-    feature_map_sizes = [38, 19, 10, 5, 3, 1]
-    aspect_ratios = [(2,),(2,3),(2,3),(2,3),(2,),(2,)]
 
     def __init__(self):
         super(SSD300, self).__init__()
-        # data encoder
-        self.data_encoder = DataEncoder(self.input_size, self.feature_map_sizes, self.aspect_ratios)
 
         # model
         self.base = self.VGG16()

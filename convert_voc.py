@@ -37,18 +37,22 @@ for xml_name in os.listdir(xml_dir):
 
     tree = ET.parse(os.path.join(xml_dir, xml_name))
     annos = []
+    imw = 1.
+    imh = 1.
     for child in tree.getroot():
-        if not child.tag == 'object':
-            continue
+        if child.tag == 'size':
+            imw = float(child.find('width').text)
+            imh = float(child.find('height').text)
 
-        bbox = child.find('bndbox')
-        xmin = bbox.find('xmin').text
-        ymin = bbox.find('ymin').text
-        xmax = bbox.find('xmax').text
-        ymax = bbox.find('ymax').text
+        if child.tag == 'object':
+            bbox = child.find('bndbox')
+            xmin = float(bbox.find('xmin').text) / imw
+            ymin = float(bbox.find('ymin').text) / imh
+            xmax = float(bbox.find('xmax').text) / imw
+            ymax = float(bbox.find('ymax').text) / imh
+            class_label = VOC_LABELS.index(child.find('name').text)
 
-        class_label = VOC_LABELS.index(child.find('name').text)
-        annos.append('%s %s %s %s %s' % (xmin,ymin,xmax,ymax,class_label))
+            annos.append('%.3f %.3f %.3f %.3f %s' % (xmin,ymin,xmax,ymax,class_label))
 
     f.write('%d %s\n' % (len(annos), ' '.join(annos)))
 f.close()

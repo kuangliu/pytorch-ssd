@@ -5,39 +5,21 @@ import math
 import itertools
 
 class DataEncoder:
-    def __init__(self, input_size, feature_map_sizes, aspect_ratios):
-        '''Compute default box sizes with scale and aspect transform.
-
-        Args:
-          input_size: (int) net input size.
-          feature_map_sizes: (list) size of each intermediate layer output.
-          aspect_ratios: (list) aspect ratios.
-
-        Returns:
-            (tensor) of default boxes, sized [8732,4].
-        '''
+    def __init__(self):
+        '''Compute default box sizes with scale and aspect transform.'''
         scale = 300.
         steps = [s / scale for s in (8, 16, 32, 64, 100, 300)]
         sizes = [s / scale for s in (30, 60, 111, 162, 213, 264, 315)]
-        aspect_ratios = ((2,), (2, 3), (2, 3), (2, 3), (2,), (2,))
-        feature_map_sizes_ = (38, 19, 10, 5, 3, 1)
+        aspect_ratios = ((2,), (2,3), (2,3), (2,3), (2,), (2,))
+        feature_map_sizes = (38, 19, 10, 5, 3, 1)
 
         num_layers = len(feature_map_sizes)
-        #min_ratio = 20
-        #max_ratio = 90
-        #step = (max_ratio-min_ratio) / (num_layers-2)
-
-        #min_sizes = [input_size * 0.1]
-        #max_sizes = [input_size * 0.2]
-        #for ratio in range(min_ratio, max_ratio+1, step):
-        #    min_sizes.append(input_size * ratio / 100.)
-        #    max_sizes.append(input_size * (ratio+step) / 100.)
 
         boxes = []
         for i in range(num_layers):
-            fmsize = feature_map_sizes_[i]
+            fmsize = feature_map_sizes[i]
             for h,w in itertools.product(range(fmsize), repeat=2):
-                cx = (w + 0.5)*steps[i] 
+                cx = (w + 0.5)*steps[i]
                 cy = (h + 0.5)*steps[i]
 
                 s = sizes[i]
@@ -46,7 +28,7 @@ class DataEncoder:
                 s = math.sqrt(sizes[i] * sizes[i+1])
                 boxes.append((cx, cy, s, s))
 
-                s = sizes[i] 
+                s = sizes[i]
                 for ar in aspect_ratios[i]:
                     boxes.append((cx, cy, s * math.sqrt(ar), s / math.sqrt(ar)))
                     boxes.append((cx, cy, s / math.sqrt(ar), s * math.sqrt(ar)))

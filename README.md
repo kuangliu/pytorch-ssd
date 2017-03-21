@@ -3,7 +3,6 @@
 
 ## TODO:
 - Add BN?
-- Replace ListDataset with PyTorch built-in dataset loader.
 - Use pretrained VGG model.
 - Speed up.
 
