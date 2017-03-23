@@ -104,5 +104,5 @@ class MultiBoxLoss(nn.Module):
 
         loc_loss /= num_matched_boxes
         conf_loss /= num_matched_boxes
-        print('%f %f ' % (loc_loss.data[0], conf_loss.data[0]), end=' ')
+        print('%f %f' % (loc_loss.data[0], conf_loss.data[0]), end=' ')
         return loc_loss + conf_loss

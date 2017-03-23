@@ -28,6 +28,8 @@ parser.add_argument('--resume', '-r', action='store_true', help='resume from che
 args = parser.parse_args()
 
 use_cuda = torch.cuda.is_available()
+best_loss = float('inf')  # best test loss
+start_epoch = 0  # start from epoch 0 or last epoch
 
 # Data
 print('==> Preparing data..')
@@ -45,8 +47,14 @@ data_encoder = DataEncoder()
 
 # Model
 net = SSD300()
+if args.resume:
+    print('==> Resuming from checkpoint..')
+    checkpoint = torch.load('./checkpoint/ckpt.pth')
+    net.load_state_dict(checkpoint['net'])
+    best_loss = checkpoint['loss']
+    start_epoch = checkpoint['epoch']
+
 criterion = MultiBoxLoss()
-#net.load_state_dict(torch.load('./model/ssd.pth'))
 
 if use_cuda:
     net = torch.nn.DataParallel(net, device_ids=[0,1,2,3,4,5,6,7])
@@ -54,7 +62,6 @@ if use_cuda:
     cudnn.benchmark = True
 
 optimizer = optim.SGD(net.parameters(), lr=args.lr, momentum=0.9, weight_decay=1e-4)
-#optimizer = optim.Adam(net.parameters(), lr=args.lr, weight_decay=1e-4)
 
 # Training
 def train(epoch):
@@ -119,7 +126,21 @@ def test(epoch):
         test_loss += loss.data[0]
         print('%.3f %.3f' % (loss.data[0], test_loss/(batch_idx+1)))
 
+    # Save checkpoint.
+    global best_loss
+    if test_loss < best_loss:
+        print('Saving..')
+        state = {
+            'net': net.module.state_dict(),
+            'loss': test_loss,
+            'epoch': epoch,
+        }
+        if not os.path.isdir('checkpoint'):
+            os.mkdir('checkpoint')
+            torch.save(state, './checkpoint/ckpt.pth')
+        best_loss = test_loss
 
-for epoch in range(200):
+
+for epoch in range(start_epoch, start_epoch+200):
     train(epoch)
     test(epoch)
