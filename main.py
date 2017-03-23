@@ -128,16 +128,17 @@ def test(epoch):
 
     # Save checkpoint.
     global best_loss
+    test_loss /= len(testloader)
     if test_loss < best_loss:
         print('Saving..')
         state = {
             'net': net.module.state_dict(),
-            'loss': test_loss,
+            'loss': best_loss,
             'epoch': epoch,
         }
         if not os.path.isdir('checkpoint'):
             os.mkdir('checkpoint')
-            torch.save(state, './checkpoint/ckpt.pth')
+        torch.save(state, './checkpoint/ckpt.pth')
         best_loss = test_loss
 
 

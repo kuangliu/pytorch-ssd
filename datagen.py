@@ -29,7 +29,6 @@ class ListDataset(data.Dataset):
           train: (bool) indicating trainset or testset.
           transform: ([transforms]) image transforms.
         '''
-
         self.root = root
         self.train = train
         self.transform = transform

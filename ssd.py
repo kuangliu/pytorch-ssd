@@ -10,6 +10,7 @@ from torch.autograd import Variable
 
 from multibox_layer import MultiBoxLayer
 
+
 class L2Norm2d(nn.Module):
     '''L2Norm layer across all channels.'''
     def __init__(self, scale):
