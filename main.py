@@ -133,7 +133,7 @@ def test(epoch):
         print('Saving..')
         state = {
             'net': net.module.state_dict(),
-            'loss': best_loss,
+            'loss': test_loss,
             'epoch': epoch,
         }
         if not os.path.isdir('checkpoint'):
