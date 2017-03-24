@@ -64,7 +64,11 @@ class ListDataset(data.Dataset):
     def __getitem__(self, idx):
         fname = self.fnames[idx]
         im = Image.open(os.path.join(self.root, fname))
-        im = im[:,:,::-1]  # RGB to BGR for pretrained VGG16 model
+        # RGB to BGR for pretrained VGG16 model
+        im = np.array(im)
+        im = im[:,:,::-1]
+        im = Image.fromarray(im)
+
         im = im.resize((self.image_size,self.image_size))
         im = self.transform(im)
         return im, idx
