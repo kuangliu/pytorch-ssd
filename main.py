@@ -33,9 +33,11 @@ start_epoch = 0  # start from epoch 0 or last epoch
 
 # Data
 print('==> Preparing data..')
+mean_bgr = (103.939, 116.779, 123.68)
+# mean_rgb = (123.68, 116.779, 103.939)
 transform = transforms.Compose([transforms.ToTensor(),
                                 transforms.Lambda(lambda x: x.mul(255.)),
-                                transforms.Normalize((123., 117., 104.), (1.,1.,1.))])
+                                transforms.Normalize(mean_bgr, (1.,1.,1.))])
 
 trainset = ListDataset(root='/search/liukuang/data/VOC2007/JPEGImages', list_file='./voc_data/index.txt', train=True, transform=transform)
 trainloader = torch.utils.data.DataLoader(trainset, batch_size=32, shuffle=True, num_workers=4)
@@ -53,6 +55,9 @@ if args.resume:
     net.load_state_dict(checkpoint['net'])
     best_loss = checkpoint['loss']
     start_epoch = checkpoint['epoch']
+else:
+    # convert from pretrained VGG model
+    net.load_state_dict(torch.load('./model/ssd.pth'))
 
 criterion = MultiBoxLoss()
 
