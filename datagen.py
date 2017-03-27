@@ -21,16 +21,14 @@ from PIL import Image
 class ListDataset(data.Dataset):
     image_size = 300
 
-    def __init__(self, root, list_file, train, transform):
+    def __init__(self, root, list_file, transform):
         '''
         Args:
           root: (str) ditectory to images.
           list_file: (str) path to index file.
-          train: (bool) indicating trainset or testset.
           transform: ([transforms]) image transforms.
         '''
         self.root = root
-        self.train = train
         self.transform = transform
 
         self.fnames = []
@@ -39,8 +37,6 @@ class ListDataset(data.Dataset):
 
         with open(list_file) as f:
             lines = f.readlines()
-            # Split the samples by 80/20 for trainset and testset.
-            lines = lines[:int(0.8*len(lines))] if self.train else lines[-int(0.2*len(lines)):]
             self.num_samples = len(lines)
 
         for line in lines:

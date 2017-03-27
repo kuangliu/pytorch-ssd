@@ -39,10 +39,10 @@ transform = transforms.Compose([transforms.ToTensor(),
                                 transforms.Lambda(lambda x: x.mul(255.)),
                                 transforms.Normalize(mean_bgr, (1.,1.,1.))])
 
-trainset = ListDataset(root='/search/liukuang/data/VOC2007/JPEGImages', list_file='./voc_data/index.txt', train=True, transform=transform)
+trainset = ListDataset(root='/search/liukuang/data/VOC2007/JPEGImages', list_file='./voc_data/voc07_train.txt', transform=transform)
 trainloader = torch.utils.data.DataLoader(trainset, batch_size=32, shuffle=True, num_workers=4)
 
-testset = ListDataset(root='/search/liukuang/data/VOC2007/JPEGImages', list_file='./voc_data/index.txt', train=False, transform=transform)
+testset = ListDataset(root='/search/liukuang/data/VOC2007/JPEGImages', list_file='./voc_data/voc07_test.txt', transform=transform)
 testloader = torch.utils.data.DataLoader(testset, batch_size=32, shuffle=False, num_workers=4)
 
 data_encoder = DataEncoder()
