@@ -16,8 +16,8 @@ import torch
 import torch.utils.data as data
 import torchvision.transforms as transforms
 
-from PIL import Image
 from encoder import DataEncoder
+from PIL import Image, ImageOps
 
 
 class ListDataset(data.Dataset):
@@ -68,21 +68,53 @@ class ListDataset(data.Dataset):
           idx: (int) image index.
 
         Returns:
-          im: (tensor) image tensor.
+          img: (tensor) image tensor.
           loc_target: (tensor) location targets, sized [8732,4].
           conf_target: (tensor) label targets, sized [8732,].
         '''
         fname = self.fnames[idx]
-        im = Image.open(os.path.join(self.root, fname))
+        img = Image.open(os.path.join(self.root, fname))
         # RGB to BGR for pretrained VGG16 model.
-        im = np.array(im)
-        im = im[:,:,::-1]
-        im = Image.fromarray(im)
-        im = im.resize((self.image_size,self.image_size))
-        im = self.transform(im)
+        img = np.array(img)
+        img = img[:,:,::-1]
+        img = Image.fromarray(img)
+        img = img.resize((self.image_size,self.image_size))
+        img = self.transform(img)
         # Encode loc & conf targets.
         loc_target, conf_target = self.data_encoder.encode(self.boxes[idx], self.labels[idx])
-        return im, loc_target, conf_target
+        return img, loc_target, conf_target
+
+    def random_flip(self, img, boxes):
+        '''Randomly flip the image and adjust the bbox locations.
+
+        For bbox [xmin, ymin, xmax, ymax], the flipped bbox is:
+        [1-xmax, ymin, 1-xmin, ymax].
+
+        Args:
+          img: (PIL.Image) image.
+          boxes: (tensor) bbox locations, sized [#obj, 4].
+
+        Returns:
+          img: (PIL.Image) randomly flipped image.
+          boxes: (tensor) randomly flipped bbox locations, sized [#obj, 4].
+        '''
+        if random.random() < 0.5:
+            img = img.transpose(Image.FLIP_LEFT_RIGHT)
+            xmin = boxes[:,0]
+            xmax = boxes[:,2]
+            xmin, xmax = 1-xmax, 1-xmin
+        return img, boxes
+
+    def random_crop(self, img, boxes, padding=4):
+        '''Randomly crop the image and adjust the bbox locations.'''
+        img = ImageOps.expand(img, border=self.padding, fill=0)
+        w, h = img.size
+        tsize = self.image_size
+        x1 = random.randint(0, w - tsize)
+        y1 = random.randint(0, h - tsize)
+        im = img.crop((x1, y1, x1 + tsize, y1 + tsize))
+
+        pass
 
     def __len__(self):
         return self.num_samples
