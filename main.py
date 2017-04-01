@@ -54,7 +54,7 @@ if args.resume:
     best_loss = checkpoint['loss']
     start_epoch = checkpoint['epoch']
 else:
-    # convert from pretrained VGG model
+    # Convert from pretrained VGG model.
     net.load_state_dict(torch.load('./model/ssd.pth'))
 
 criterion = MultiBoxLoss()

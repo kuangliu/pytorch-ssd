@@ -50,18 +50,28 @@ class ListDataset(data.Dataset):
             num_objs = int(splited[1])
             box = []
             label = []
-            for j in range(num_objs):
-                xmin = splited[2+5*j]
-                ymin = splited[3+5*j]
-                xmax = splited[4+5*j]
-                ymax = splited[5+5*j]
-                c = splited[6+5*j]
+            for i in range(num_objs):
+                xmin = splited[2+5*i]
+                ymin = splited[3+5*i]
+                xmax = splited[4+5*i]
+                ymax = splited[5+5*i]
+                c = splited[6+5*i]
                 box.append([float(xmin),float(ymin),float(xmax),float(ymax)])
                 label.append(int(c))
             self.boxes.append(torch.Tensor(box))
             self.labels.append(torch.LongTensor(label))
 
     def __getitem__(self, idx):
+        '''Load a image, and encode its bbox locations and class labels.
+
+        Args:
+          idx: (int) image index.
+
+        Returns:
+          im: (tensor) image tensor.
+          loc_target: (tensor) location targets, sized [8732,4].
+          conf_target: (tensor) label targets, sized [8732,].
+        '''
         fname = self.fnames[idx]
         im = Image.open(os.path.join(self.root, fname))
         # RGB to BGR for pretrained VGG16 model.
