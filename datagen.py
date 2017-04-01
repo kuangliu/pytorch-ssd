@@ -9,6 +9,7 @@ import os
 import sys
 import os.path
 
+import random
 import numpy as np
 
 import torch
@@ -16,6 +17,7 @@ import torch.utils.data as data
 import torchvision.transforms as transforms
 
 from PIL import Image
+from encoder import DataEncoder
 
 
 class ListDataset(data.Dataset):
@@ -34,6 +36,8 @@ class ListDataset(data.Dataset):
         self.fnames = []
         self.boxes = []
         self.labels = []
+
+        self.data_encoder = DataEncoder()
 
         with open(list_file) as f:
             lines = f.readlines()
@@ -60,28 +64,15 @@ class ListDataset(data.Dataset):
     def __getitem__(self, idx):
         fname = self.fnames[idx]
         im = Image.open(os.path.join(self.root, fname))
-        # RGB to BGR for pretrained VGG16 model
+        # RGB to BGR for pretrained VGG16 model.
         im = np.array(im)
         im = im[:,:,::-1]
         im = Image.fromarray(im)
-
         im = im.resize((self.image_size,self.image_size))
         im = self.transform(im)
-        return im, idx
-
-    def load_boxes_and_labels(self, indices):
-        '''Load the boxes and labels of specified indices.
-
-        Args:
-          indices: (tensor) sample indices, sized [N,].
-
-        Returns:
-          boxes: (list) bounding boxes.
-          labels: (list) bounding box labels.
-        '''
-        boxes = [self.boxes[i] for i in indices]
-        labels = [self.labels[i] for i in indices]
-        return boxes, labels
+        # Encode loc & conf targets.
+        loc_target, conf_target = self.data_encoder.encode(self.boxes[idx], self.labels[idx])
+        return im, loc_target, conf_target
 
     def __len__(self):
         return self.num_samples

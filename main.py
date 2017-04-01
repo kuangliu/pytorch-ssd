@@ -16,7 +16,6 @@ import torchvision.transforms as transforms
 from ssd import SSD300
 from utils import progress_bar
 from datagen import ListDataset
-from encoder import DataEncoder
 from multibox_loss import MultiBoxLoss
 
 from torch.autograd import Variable
@@ -37,15 +36,14 @@ mean_bgr = (103.939, 116.779, 123.68)
 # mean_rgb = (123.68, 116.779, 103.939)
 transform = transforms.Compose([transforms.ToTensor(),
                                 transforms.Lambda(lambda x: x.mul(255.)),
-                                transforms.Normalize(mean_bgr, (1.,1.,1.))])
+                                transforms.Normalize(mean=mean_bgr, std=(1.,1.,1.))])
 
-trainset = ListDataset(root='/search/liukuang/data/VOC2007/JPEGImages', list_file='./voc_data/voc07_train.txt', transform=transform)
+trainset = ListDataset(root='/search/liukuang/data/VOC2012_trainval_test_images', list_file='./voc_data/voc12_train.txt', transform=transform)
 trainloader = torch.utils.data.DataLoader(trainset, batch_size=32, shuffle=True, num_workers=4)
 
-testset = ListDataset(root='/search/liukuang/data/VOC2007/JPEGImages', list_file='./voc_data/voc07_test.txt', transform=transform)
+testset = ListDataset(root='/search/liukuang/data/VOC2012_trainval_test_images', list_file='./voc_data/voc12_test.txt', transform=transform)
 testloader = torch.utils.data.DataLoader(testset, batch_size=32, shuffle=False, num_workers=4)
 
-data_encoder = DataEncoder()
 
 # Model
 net = SSD300()
@@ -73,17 +71,7 @@ def train(epoch):
     print('\nEpoch: %d' % epoch)
     net.train()
     train_loss = 0
-    for batch_idx, (images, indices) in enumerate(trainloader):
-        boxes, labels = trainset.load_boxes_and_labels(indices)
-        batch_size = len(boxes)
-
-        loc_targets = torch.Tensor(batch_size, 8732, 4)
-        conf_targets = torch.LongTensor(batch_size, 8732)
-        for i in range(batch_size):
-            loc_target, conf_target = data_encoder.encode(boxes[i], labels[i])
-            loc_targets[i] = loc_target
-            conf_targets[i] = conf_target
-
+    for batch_idx, (images, loc_targets, conf_targets) in enumerate(trainloader):
         if use_cuda:
             images = images.cuda()
             loc_targets = loc_targets.cuda()
@@ -106,17 +94,7 @@ def test(epoch):
     print('\nTest')
     net.eval()
     test_loss = 0
-    for batch_idx, (images, indices) in enumerate(testloader):
-        boxes, labels = testset.load_boxes_and_labels(indices)
-        batch_size = len(boxes)
-
-        loc_targets = torch.Tensor(batch_size, 8732, 4)
-        conf_targets = torch.LongTensor(batch_size, 8732)
-        for i in range(batch_size):
-            loc_target, conf_target = data_encoder.encode(boxes[i], labels[i])
-            loc_targets[i] = loc_target
-            conf_targets[i] = conf_target
-
+    for batch_idx, (images, loc_targets, conf_targets) in enumerate(testloader):
         if use_cuda:
             images = images.cuda()
             loc_targets = loc_targets.cuda()
