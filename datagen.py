@@ -21,7 +21,7 @@ from PIL import Image, ImageOps
 
 
 class ListDataset(data.Dataset):
-    image_size = 300
+    img_size = 300
 
     def __init__(self, root, list_file, transform):
         '''
@@ -78,7 +78,7 @@ class ListDataset(data.Dataset):
         img = np.array(img)
         img = img[:,:,::-1]
         img = Image.fromarray(img)
-        img = img.resize((self.image_size,self.image_size))
+        img = img.resize((self.img_size,self.img_size))
         img = self.transform(img)
         # Encode loc & conf targets.
         loc_target, conf_target = self.data_encoder.encode(self.boxes[idx], self.labels[idx])
@@ -87,8 +87,8 @@ class ListDataset(data.Dataset):
     def random_flip(self, img, boxes):
         '''Randomly flip the image and adjust the bbox locations.
 
-        For bbox [xmin, ymin, xmax, ymax], the flipped bbox is:
-        [1-xmax, ymin, 1-xmin, ymax].
+        For bbox (xmin, ymin, xmax, ymax), the flipped bbox is:
+        (1-xmax, ymin, 1-xmin, ymax).
 
         Args:
           img: (PIL.Image) image.
@@ -106,15 +106,28 @@ class ListDataset(data.Dataset):
         return img, boxes
 
     def random_crop(self, img, boxes, padding=4):
-        '''Randomly crop the image and adjust the bbox locations.'''
+        '''Randomly crop the image and adjust the bbox locations.
+
+        Args:
+          img: (PIL.Image) image.
+          boxes: (tensor) bbox locations, sized [#obj, 4].
+          padding: (int) number of padding pixels.
+
+        Returns:
+          img: (PIL.Image) randomly cropped image.
+          boxes: (tensor) randomly cropped bbox locations, sized [#obj, 4].
+        '''
         img = ImageOps.expand(img, border=self.padding, fill=0)
         w, h = img.size
-        tsize = self.image_size
+        tsize = self.img_size
         x1 = random.randint(0, w - tsize)
         y1 = random.randint(0, h - tsize)
-        im = img.crop((x1, y1, x1 + tsize, y1 + tsize))
-
-        pass
+        img = img.crop((x1, y1, x1 + tsize, y1 + tsize))
+        boxes[:,0] += padding - x1
+        boxes[:,1] += padding - y1
+        boxes[:,2] += padding - x1
+        boxes[:,3] += padding - y1
+        return img, boxes
 
     def __len__(self):
         return self.num_samples
