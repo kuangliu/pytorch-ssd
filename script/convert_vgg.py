@@ -1,13 +1,13 @@
 '''Convert pretrained VGG model to SSD.
 
-VGG model download from: https://github.com/jcjohnson/pytorch-vgg
+VGG model download from PyTorch model zoo: https://download.pytorch.org/models/vgg16-397923af.pth
 '''
 import torch
 
 from ssd import SSD300
 
 
-vgg = torch.load('./model/jcjohnson-pytorch-vgg16.pth')
+vgg = torch.load('./model/vgg16-397923af.pth')
 
 ssd = SSD300()
 layer_indices = [0,2,5,7,10,12,14,17,19,21]

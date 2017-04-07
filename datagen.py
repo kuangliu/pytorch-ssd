@@ -88,11 +88,6 @@ class ListDataset(data.Dataset):
         w,h = img.size
         boxes /= torch.Tensor([w,h,w,h]).expand_as(boxes)
 
-        # RGB to BGR for pretrained VGG16 model.
-        img = np.array(img)
-        img = img[:,:,::-1]
-        img = Image.fromarray(img)
-
         img = img.resize((self.img_size,self.img_size))
         img = self.transform(img)
 

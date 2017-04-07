@@ -4,11 +4,9 @@
 ## Use pretrained VGG16 model
 I do not recommend training SSD from scratch. Use pretrained VGG model helps a lot to achieve lower losses.
 
-I use the pretrained VGG16 model from [here](https://github.com/jcjohnson/pytorch-vgg), thanks to Justin Johnson.
+I use the pretrained [pytorch/vision](https://github.com/pytorch/vision#models) VGG16 model from [PyTorch model zoo](https://download.pytorch.org/models/vgg16-397923af.pth).
 
 ## Credit
-This implementation is heavily inspired by:
+This implementation is initially inspired by:
 - [Hakuyume/chainer-ssd](https://github.com/Hakuyume/chainer-ssd)  
 - [amdegroot/ssd.pytorch](https://github.com/amdegroot/ssd.pytorch)  
-
-Check them out.
