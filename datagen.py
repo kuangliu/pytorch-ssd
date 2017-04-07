@@ -23,14 +23,16 @@ from PIL import Image, ImageOps
 class ListDataset(data.Dataset):
     img_size = 300
 
-    def __init__(self, root, list_file, transform):
+    def __init__(self, root, list_file, train, transform):
         '''
         Args:
           root: (str) ditectory to images.
           list_file: (str) path to index file.
+          train: (boolean) train or test.
           transform: ([transforms]) image transforms.
         '''
         self.root = root
+        self.train = train
         self.transform = transform
 
         self.fnames = []
@@ -77,9 +79,10 @@ class ListDataset(data.Dataset):
         img = Image.open(os.path.join(self.root, fname))
         boxes = self.boxes[idx].clone()
 
-        # Augmentation.
-        img, boxes = self.random_flip(img, boxes)
-        img, boxes = self.random_crop(img, boxes)
+        # Data augmentation while training.
+        if self.train:
+            img, boxes = self.random_flip(img, boxes)
+            img, boxes = self.random_crop(img, boxes)
 
         # Scale bbox locaitons to [0,1].
         w,h = img.size

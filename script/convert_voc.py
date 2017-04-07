@@ -32,8 +32,8 @@ xml_dir = '/mnt/hgfs/D/download/PASCAL VOC/test_12/'
 f = open('voc12_test.txt', 'w')
 for xml_name in os.listdir(xml_dir):
     print('converting %s' % xml_name)
-    image_name = xml_name[:-4]+'.jpg'
-    f.write(image_name+' ')
+    img_name = xml_name[:-4]+'.jpg'
+    f.write(img_name+' ')
 
     tree = ET.parse(os.path.join(xml_dir, xml_name))
     annos = []
