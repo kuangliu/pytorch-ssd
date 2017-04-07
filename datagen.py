@@ -72,23 +72,36 @@ class ListDataset(data.Dataset):
           loc_target: (tensor) location targets, sized [8732,4].
           conf_target: (tensor) label targets, sized [8732,].
         '''
+        # Load image and bbox locations.
         fname = self.fnames[idx]
         img = Image.open(os.path.join(self.root, fname))
+        boxes = self.boxes[idx].clone()
+
+        # Augmentation.
+        img, boxes = self.random_flip(img, boxes)
+        img, boxes = self.random_crop(img, boxes)
+
+        # Scale bbox locaitons to [0,1].
+        w,h = img.size
+        boxes /= torch.Tensor([w,h,w,h]).expand_as(boxes)
+
         # RGB to BGR for pretrained VGG16 model.
         img = np.array(img)
         img = img[:,:,::-1]
         img = Image.fromarray(img)
+
         img = img.resize((self.img_size,self.img_size))
         img = self.transform(img)
+
         # Encode loc & conf targets.
-        loc_target, conf_target = self.data_encoder.encode(self.boxes[idx], self.labels[idx])
+        loc_target, conf_target = self.data_encoder.encode(boxes, self.labels[idx])
         return img, loc_target, conf_target
 
     def random_flip(self, img, boxes):
         '''Randomly flip the image and adjust the bbox locations.
 
         For bbox (xmin, ymin, xmax, ymax), the flipped bbox is:
-        (1-xmax, ymin, 1-xmin, ymax).
+        (w-xmax, ymin, w-xmin, ymax).
 
         Args:
           img: (PIL.Image) image.
@@ -100,9 +113,10 @@ class ListDataset(data.Dataset):
         '''
         if random.random() < 0.5:
             img = img.transpose(Image.FLIP_LEFT_RIGHT)
+            w = img.width
             xmin = boxes[:,0]
             xmax = boxes[:,2]
-            xmin, xmax = 1-xmax, 1-xmin
+            xmin, xmax = w-xmax, w-xmin
         return img, boxes
 
     def random_crop(self, img, boxes, padding=4):
@@ -117,12 +131,11 @@ class ListDataset(data.Dataset):
           img: (PIL.Image) randomly cropped image.
           boxes: (tensor) randomly cropped bbox locations, sized [#obj, 4].
         '''
-        img = ImageOps.expand(img, border=self.padding, fill=0)
         w, h = img.size
-        tsize = self.img_size
-        x1 = random.randint(0, w - tsize)
-        y1 = random.randint(0, h - tsize)
-        img = img.crop((x1, y1, x1 + tsize, y1 + tsize))
+        img = ImageOps.expand(img, border=padding, fill=0)
+        x1 = random.randint(0, 2*padding)
+        y1 = random.randint(0, 2*padding)
+        img = img.crop((x1, y1, x1 + w, y1 + h))
         boxes[:,0] += padding - x1
         boxes[:,1] += padding - y1
         boxes[:,2] += padding - x1
