@@ -33,9 +33,8 @@ start_epoch = 0  # start from epoch 0 or last epoch
 # Data
 print('==> Preparing data..')
 transform = transforms.Compose([transforms.ToTensor(),
-                                transforms.Lambda(lambda x: x.mul(255.)),
                                 transforms.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225))])
-                                
+
 trainset = ListDataset(root='/search/liukuang/data/VOC2012_trainval_test_images', list_file='./voc_data/voc12_train.txt', train=True, transform=transform)
 trainloader = torch.utils.data.DataLoader(trainset, batch_size=32, shuffle=True, num_workers=4)
 
