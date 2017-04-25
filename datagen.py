@@ -112,9 +112,10 @@ class ListDataset(data.Dataset):
         if random.random() < 0.5:
             img = img.transpose(Image.FLIP_LEFT_RIGHT)
             w = img.width
-            xmin = boxes[:,0]
-            xmax = boxes[:,2]
-            xmin, xmax = w-xmax, w-xmin
+            xmin = w - boxes[:,2]
+            xmax = w - boxes[:,0]
+            boxes[:,0] = xmin
+            boxes[:,2] = xmax
         return img, boxes
 
     def random_crop(self, img, boxes, padding=4):

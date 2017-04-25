@@ -36,16 +36,16 @@ class MultiBoxLayer(nn.Module):
         y_locs = []
         y_confs = []
         for i,x in enumerate(xs):
-        	y_loc = self.loc_layers[i](x)
-        	N = y_loc.size(0)
-        	y_loc = y_loc.permute(0,2,3,1).contiguous()
-        	y_loc = y_loc.view(N,-1,4)
-        	y_locs.append(y_loc)
+            y_loc = self.loc_layers[i](x)
+            N = y_loc.size(0)
+            y_loc = y_loc.permute(0,2,3,1).contiguous()
+            y_loc = y_loc.view(N,-1,4)
+            y_locs.append(y_loc)
 
-        	y_conf = self.conf_layers[i](x)
-        	y_conf = y_conf.permute(0,2,3,1).contiguous()
-        	y_conf = y_conf.view(N,-1,21)
-        	y_confs.append(y_conf)
+            y_conf = self.conf_layers[i](x)
+            y_conf = y_conf.permute(0,2,3,1).contiguous()
+            y_conf = y_conf.view(N,-1,21)
+            y_confs.append(y_conf)
 
         loc_preds = torch.cat(y_locs, 1)
         conf_preds = torch.cat(y_confs, 1)
