@@ -12,6 +12,7 @@ from torch.autograd import Variable
 
 class MultiBoxLoss(nn.Module):
     num_classes = 21
+
     def __init__(self):
         super(MultiBoxLoss, self).__init__()
 

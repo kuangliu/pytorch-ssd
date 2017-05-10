@@ -78,11 +78,12 @@ class ListDataset(data.Dataset):
         fname = self.fnames[idx]
         img = Image.open(os.path.join(self.root, fname))
         boxes = self.boxes[idx].clone()
+        labels = self.labels[idx]
 
         # Data augmentation while training.
         if self.train:
             img, boxes = self.random_flip(img, boxes)
-            img, boxes = self.random_crop(img, boxes)
+            img, boxes, labels = self.random_crop(img, boxes, labels)
 
         # Scale bbox locaitons to [0,1].
         w,h = img.size
@@ -92,7 +93,7 @@ class ListDataset(data.Dataset):
         img = self.transform(img)
 
         # Encode loc & conf targets.
-        loc_target, conf_target = self.data_encoder.encode(boxes, self.labels[idx])
+        loc_target, conf_target = self.data_encoder.encode(boxes, labels)
         return img, loc_target, conf_target
 
     def random_flip(self, img, boxes):
@@ -118,28 +119,57 @@ class ListDataset(data.Dataset):
             boxes[:,2] = xmax
         return img, boxes
 
-    def random_crop(self, img, boxes, padding=4):
+    def random_crop(self, img, boxes, labels):
         '''Randomly crop the image and adjust the bbox locations.
+
+        For more details, see 'Chapter2.2: Data augmentation' of the paper.
 
         Args:
           img: (PIL.Image) image.
           boxes: (tensor) bbox locations, sized [#obj, 4].
-          padding: (int) number of padding pixels.
+          labels: (tensor) bbox labels, sized [#obj,].
 
         Returns:
-          img: (PIL.Image) randomly cropped image.
-          boxes: (tensor) randomly cropped bbox locations, sized [#obj, 4].
+          img: (PIL.Image) cropped image.
+          selected_boxes: (tensor) selected bbox locations.
+          labels: (tensor) selected bbox labels.
         '''
-        w, h = img.size
-        img = ImageOps.expand(img, border=padding, fill=0)
-        x1 = random.randint(0, 2*padding)
-        y1 = random.randint(0, 2*padding)
-        img = img.crop((x1, y1, x1 + w, y1 + h))
-        boxes[:,0] += padding - x1
-        boxes[:,1] += padding - y1
-        boxes[:,2] += padding - x1
-        boxes[:,3] += padding - y1
-        return img, boxes
+        imw, imh = img.size
+        while True:
+            min_iou = random.choice([None, 0.1, 0.3, 0.5, 0.7, 0.9])
+            if min_iou is None:
+                return img, boxes, labels
+
+            for _ in range(100):
+                w = random.randrange(int(0.1*imw), imw)
+                h = random.randrange(int(0.1*imh), imh)
+
+                if h > 2*w or w > 2*h:
+                    continue
+
+                x = random.randrange(imw - w)
+                y = random.randrange(imh - h)
+                roi = torch.Tensor([[x, y, x+w, y+h]])
+
+                center = (boxes[:,:2] + boxes[:,2:]) / 2  # [N,2]
+                roi2 = roi.expand(len(center), 4)  # [N,4]
+                mask = (center > roi2[:,:2]) & (center < roi2[:,2:])  # [N,2]
+                mask = mask[:,0] & mask[:,1]  #[N,]
+                if not mask.any():
+                    continue
+
+                selected_boxes = boxes.index_select(0, mask.nonzero().squeeze(1))
+
+                iou = self.data_encoder.iou(selected_boxes, roi)
+                if iou.min() < min_iou:
+                    continue
+
+                img = img.crop((x, y, x+w, y+h))
+                selected_boxes[:,0].add_(-x).clamp_(min=0, max=w)
+                selected_boxes[:,1].add_(-y).clamp_(min=0, max=h)
+                selected_boxes[:,2].add_(-x).clamp_(min=0, max=w)
+                selected_boxes[:,3].add_(-y).clamp_(min=0, max=h)
+                return img, selected_boxes, labels[mask]
 
     def __len__(self):
         return self.num_samples

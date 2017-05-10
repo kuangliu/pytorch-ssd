@@ -29,6 +29,39 @@ def get_mean_and_std(dataset, max_load=10000):
     std.div_(N)
     return mean, std
 
+def mask_select(input, mask, dim):
+    '''Select tensor rows/cols using a mask tensor.
+
+    Args:
+      input: (tensor) input tensor, sized [N,M].
+      mask: (tensor) mask tensor, sized [N,] or [M,].
+      dim: (tensor) mask dim.
+
+    Returns:
+      (tensor) selected rows/cols.
+
+    Example:
+    >>> a = torch.randn(4,2)
+    >>> a
+    -0.3462 -0.6930
+     0.4560 -0.7459
+    -0.1289 -0.9955
+     1.7454  1.9787
+    [torch.FloatTensor of size 4x2]
+    >>> i = a[:,0] > 0
+    >>> i
+    0
+    1
+    0
+    1
+    [torch.ByteTensor of size 4]
+    >>> masked_select(a, i, 0)
+    0.4560 -0.7459
+    1.7454  1.9787
+    [torch.FloatTensor of size 2x2]
+    '''
+    index = mask.nonzero().squeeze(1)
+    return input.index_select(dim, index)
 
 def msr_init(net):
     '''Initialize layer parameters.'''
