@@ -111,3 +111,23 @@ class DataEncoder:
         conf = 1 + classes[max_idx]   # [8732,], background class = 0
         conf[iou<threshold] = 0       # background
         return loc, conf
+
+    def decode(self, loc, conf):
+        '''Transform predicted loc/conf back to real bbox locations and class labels.
+
+        Args:
+          loc: (tensor) predicted loc, sized [8732,4].
+          conf: (tensor) predicted conf, sized [8732,21].
+
+        Returns:
+          boxes: (tensor) bbox locations, sized [#obj, 4].
+          labels: (tensor) class labels, sized [#obj,1]
+        '''
+        variances = [0.1, 0.2]
+        wh = torch.exp(loc[:,2:]*variances[1]) * self.default_boxes[:,2:]
+        cxcy = loc[:,:2] * variances[0] * self.default_boxes[:,2:] + self.default_boxes[:,:2]
+        boxes = torch.cat([cxcy-wh/2, cxcy+wh/2], 1)  # [8732,4]
+
+        _, labels = conf.max(1)  # [8732,1]
+        ids = labels.squeeze(1).nonzero().squeeze(1)  # [#boxes,]
+        return boxes[ids], labels[ids]
