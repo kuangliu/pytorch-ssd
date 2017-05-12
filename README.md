@@ -1,5 +1,8 @@
-# PyTorch-SSD [in progress]
+# PyTorch-SSD
 [Single Shot MultiBox Detector](https://arxiv.org/abs/1512.02325) in PyTorch.
+
+## Test
+![img](./image/img2.jpg)  
 
 ## Use pretrained VGG16 model
 I do not recommend training SSD from scratch. Use pretrained VGG model helps a lot to achieve lower losses.

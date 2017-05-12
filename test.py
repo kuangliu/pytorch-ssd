@@ -17,13 +17,13 @@ net.eval()
 
 # Load test image
 img = Image.open('./image/img1.jpg')
-img = img.resize((300,300))
+img1 = img.resize((300,300))
 transform = transforms.Compose([transforms.ToTensor(),
                                 transforms.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225))])
-inputs = transform(img)
+img1 = transform(img1)
 
 # Forward
-loc, conf = net(Variable(inputs[None,:,:,:], volatile=True))
+loc, conf = net(Variable(img1[None,:,:,:], volatile=True))
 
 # Decode
 data_encoder = DataEncoder()
@@ -31,6 +31,7 @@ boxes, labels, scores = data_encoder.decode(loc.data.squeeze(0), F.softmax(conf.
 
 draw = ImageDraw.Draw(img)
 for box in boxes:
-    box *= 300
+    box[::2] *= img.width
+    box[1::2] *= img.height
     draw.rectangle(list(box), outline='red')
 img.show()
