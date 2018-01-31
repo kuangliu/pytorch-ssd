@@ -1,4 +1,4 @@
-# PyTorch-SSD
+# PyTorch-SSD has been deprecated. Please see [torchcv](https://github.com/kuangliu/torchcv), which includes an implementation of SSD300/SSD512.
 [Single Shot MultiBox Detector](https://arxiv.org/abs/1512.02325) in PyTorch.
 
 ## Test
